@@ -80,7 +80,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 SHEET_ID = "1e4ID8nj9oybS_wMJjFfLeCI8OPme1f-_8dJMX3n-bD0"
-ABA = "Planilha1"
+ABA = "Página1"
 
 # ── Conexão Google Sheets ───────────────────────────────────────────────────
 @st.cache_resource
