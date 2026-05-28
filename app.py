@@ -116,7 +116,6 @@ def salvar_linha(linha: list):
 def atualizar_linha(row_index: int, situacao: str, meio: str, data_pagto, recebido: str):
     client = get_client()
     sheet = client.open_by_key(SHEET_ID).worksheet(ABA)
-    # row_index é 0-based no df; no sheets é +2 (header + 1-based)
     sheet_row = row_index + 2
     data_str = data_pagto.strftime("%d/%m/%Y") if data_pagto else ""
     sheet.update(f"H{sheet_row}", [[situacao]])
@@ -131,7 +130,6 @@ def get_hospitais_atuais():
     base = dict(HOSPITAIS)
     for h in sorted(extras):
         base[h] = ""
-    # Reordena mantendo Outro no final
     ordered = {k: v for k, v in base.items() if k != "Outro / Novo hospital"}
     ordered["Outro / Novo hospital"] = None
     return ordered
@@ -162,27 +160,23 @@ if st.session_state.pagina == "registrar":
     hospitais_map = get_hospitais_atuais()
     lista_hospitais = list(hospitais_map.keys())
 
+    # Selectbox FORA do form para reagir imediatamente
+    hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais)
+
+    if hospital_sel == "Outro / Novo hospital":
+        hospital_final = st.text_input("Nome do novo hospital")
+        cidade_final = st.text_input("Cidade do novo hospital")
+    else:
+        hospital_final = hospital_sel
+        cidade_auto = hospitais_map.get(hospital_sel, "")
+        if cidade_auto == "":
+            cidade_final = st.text_input("📍 Cidade", value="")
+        else:
+            st.text_input("📍 Cidade", value=cidade_auto, disabled=True)
+            cidade_final = cidade_auto
+
     with st.form("form_atendimento", clear_on_submit=True):
         data = st.date_input("📅 Data", value=date.today())
-
-        hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais)
-
-        novo_hospital = ""
-        nova_cidade = ""
-        if hospital_sel == "Outro / Novo hospital":
-            novo_hospital = st.text_input("Nome do novo hospital")
-            nova_cidade = st.text_input("Cidade")
-            cidade_final = nova_cidade
-            hospital_final = novo_hospital
-        else:
-            cidade_auto = hospitais_map.get(hospital_sel, "")
-            if cidade_auto == "":
-                cidade_auto = st.text_input("Cidade", value="")
-            else:
-                st.text_input("📍 Cidade", value=cidade_auto, disabled=True)
-            cidade_final = cidade_auto
-            hospital_final = hospital_sel
-
         cliente = st.text_input("👤 Cliente")
         pet = st.text_input("🐶 Pet")
         tipo = st.selectbox("🔬 Tipo de Atendimento", TIPOS)
@@ -198,7 +192,6 @@ if st.session_state.pagina == "registrar":
             recebido = st.selectbox("🧾 PF / PJ", RECEBIDO_OPTS)
 
         observacao = st.text_input("📝 Observação (opcional)")
-
         submitted = st.form_submit_button("✅ Salvar Atendimento", use_container_width=True)
 
     if submitted:
@@ -261,7 +254,6 @@ elif st.session_state.pagina == "relatorio":
     if df.empty:
         st.info("Nenhum dado ainda.")
     else:
-        # Filtros
         col1, col2 = st.columns(2)
         with col1:
             meses = sorted(df["DATA"].dropna().apply(lambda d: d.strftime("%m/%Y")).unique(), reverse=True)
