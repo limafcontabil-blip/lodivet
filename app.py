@@ -85,6 +85,7 @@ ABA = "Planilha1"
 # ── Conexão Google Sheets ───────────────────────────────────────────────────
 @st.cache_resource
 def get_client():
+    import json
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     return gspread.authorize(creds)
