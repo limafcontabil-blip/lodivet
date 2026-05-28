@@ -130,7 +130,8 @@ def get_hospitais_atuais():
     base = dict(HOSPITAIS)
     for h in sorted(extras):
         base[h] = ""
-    ordered = {k: v for k, v in base.items() if k != "Outro / Novo hospital"}
+    # Ordena tudo alfabeticamente, mantendo Outro no final
+    ordered = dict(sorted({k: v for k, v in base.items() if k != "Outro / Novo hospital"}.items()))
     ordered["Outro / Novo hospital"] = None
     return ordered
 
@@ -161,18 +162,18 @@ if st.session_state.pagina == "registrar":
     lista_hospitais = list(hospitais_map.keys())
 
     # Selectbox FORA do form para reagir imediatamente
-    hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais)
+    hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais, key="hospital_sel")
 
     if hospital_sel == "Outro / Novo hospital":
-        hospital_final = st.text_input("Nome do novo hospital")
-        cidade_final = st.text_input("Cidade do novo hospital")
+        hospital_final = st.text_input("Nome do novo hospital", key="novo_hospital")
+        cidade_final = st.text_input("Cidade do novo hospital", key="nova_cidade")
     else:
         hospital_final = hospital_sel
         cidade_auto = hospitais_map.get(hospital_sel, "")
         if cidade_auto == "":
-            cidade_final = st.text_input("📍 Cidade", value="")
+            cidade_final = st.text_input("📍 Cidade", value="", key="cidade_livre")
         else:
-            st.text_input("📍 Cidade", value=cidade_auto, disabled=True)
+            st.text_input("📍 Cidade", value=cidade_auto, disabled=True, key="cidade_auto")
             cidade_final = cidade_auto
 
     with st.form("form_atendimento", clear_on_submit=True):
@@ -195,6 +196,11 @@ if st.session_state.pagina == "registrar":
         submitted = st.form_submit_button("✅ Salvar Atendimento", use_container_width=True)
 
     if submitted:
+        # Lê os valores do session_state para garantir que pegou antes do reset
+        if st.session_state.get("hospital_sel") == "Outro / Novo hospital":
+            hospital_final = st.session_state.get("novo_hospital", "")
+            cidade_final = st.session_state.get("nova_cidade", "")
+
         if not hospital_final:
             st.error("Informe o hospital.")
         elif not pet:
