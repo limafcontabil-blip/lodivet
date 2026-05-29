@@ -85,7 +85,6 @@ ABA = "Página1"
 # ── Conexão Google Sheets ───────────────────────────────────────────────────
 @st.cache_resource
 def get_client():
-    import json
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     return gspread.authorize(creds)
@@ -134,6 +133,16 @@ def get_hospitais_atuais():
     ordered["Outro / Novo hospital"] = None
     return ordered
 
+def limpar_formulario():
+    campos = [
+        "f_data", "f_hospital", "f_novo_hospital", "f_nova_cidade",
+        "f_cidade_livre", "f_cliente", "f_pet", "f_tipo", "f_valor",
+        "f_situacao", "f_meio", "f_data_pagto", "f_recebido", "f_obs"
+    ]
+    for campo in campos:
+        if campo in st.session_state:
+            del st.session_state[campo]
+
 # ── Navegação ───────────────────────────────────────────────────────────────
 if "pagina" not in st.session_state:
     st.session_state.pagina = "registrar"
@@ -160,59 +169,48 @@ if st.session_state.pagina == "registrar":
     hospitais_map = get_hospitais_atuais()
     lista_hospitais = list(hospitais_map.keys())
 
-    # Campos FORA do form para reagir imediatamente
-    hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais, key="hospital_sel")
+    # Todos os campos soltos, na ordem certa, sem st.form
+    data = st.date_input("📅 Data do Atendimento", value=date.today(), key="f_data")
+
+    hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais, key="f_hospital")
 
     if hospital_sel == "Outro / Novo hospital":
-        hospital_final = st.text_input("Nome do novo hospital", key="novo_hospital")
-        cidade_final = st.text_input("Cidade do novo hospital", key="nova_cidade")
+        hospital_final = st.text_input("Nome do novo hospital", key="f_novo_hospital")
+        cidade_final = st.text_input("Cidade do novo hospital", key="f_nova_cidade")
     else:
         hospital_final = hospital_sel
         cidade_auto = hospitais_map.get(hospital_sel, "")
         if cidade_auto == "":
-            cidade_final = st.text_input("📍 Cidade", value="", key="cidade_livre")
+            cidade_final = st.text_input("📍 Cidade", value="", key="f_cidade_livre")
         else:
-            st.text_input("📍 Cidade", value=cidade_auto, disabled=True, key="cidade_auto")
+            st.text_input("📍 Cidade", value=cidade_auto, disabled=True)
             cidade_final = cidade_auto
 
-    # Situação também FORA do form para mostrar campos de pagamento na hora
-    situacao = st.selectbox("📋 Situação", SITUACOES, key="situacao_sel")
+    cliente = st.text_input("👤 Cliente", key="f_cliente")
+    pet = st.text_input("🐶 Pet", key="f_pet")
+    tipo = st.selectbox("🔬 Tipo de Atendimento", TIPOS, key="f_tipo")
+    valor = st.number_input("💵 Valor (R$)", min_value=0.0, step=10.0, format="%.2f", key="f_valor")
+
+    situacao = st.selectbox("📋 Situação", SITUACOES, key="f_situacao")
 
     meio_pagto = ""
     data_pagto = None
     recebido = ""
     if situacao == "Pago":
-        meio_pagto = st.selectbox("💳 Meio de Pagamento", MEIOS_PAGTO, key="meio_sel")
-        data_pagto = st.date_input("📅 Data do Pagamento", value=date.today(), key="data_pagto_sel")
-        recebido = st.selectbox("🧾 PF / PJ", RECEBIDO_OPTS, key="recebido_sel")
+        meio_pagto = st.selectbox("💳 Meio de Pagamento", MEIOS_PAGTO, key="f_meio")
+        data_pagto = st.date_input("📅 Data do Pagamento", value=date.today(), key="f_data_pagto")
+        recebido = st.selectbox("🧾 PF / PJ", RECEBIDO_OPTS, key="f_recebido")
 
-    with st.form("form_atendimento", clear_on_submit=True):
-        data = st.date_input("📅 Data do Atendimento", value=date.today())
-        cliente = st.text_input("👤 Cliente")
-        pet = st.text_input("🐶 Pet")
-        tipo = st.selectbox("🔬 Tipo de Atendimento", TIPOS)
-        valor = st.number_input("💵 Valor (R$)", min_value=0.0, step=10.0, format="%.2f")
-        observacao = st.text_input("📝 Observação (opcional)")
-        submitted = st.form_submit_button("✅ Salvar Atendimento", use_container_width=True)
+    observacao = st.text_input("📝 Observação (opcional)", key="f_obs")
 
-    if submitted:
-        if st.session_state.get("hospital_sel") == "Outro / Novo hospital":
-            hospital_final = st.session_state.get("novo_hospital", "")
-            cidade_final = st.session_state.get("nova_cidade", "")
-
-        situacao = st.session_state.get("situacao_sel", "Em aberto")
-        meio_pagto = st.session_state.get("meio_sel", "")
-        data_pagto = st.session_state.get("data_pagto_sel", None)
-        recebido = st.session_state.get("recebido_sel", "")
-
+    if st.button("✅ Salvar Atendimento", use_container_width=True):
         if not hospital_final:
             st.error("Informe o hospital.")
         elif not pet:
             st.error("Informe o nome do pet.")
-        elif valor == 0:
-            st.warning("Valor zerado. Salvando mesmo assim...")
-
-        if hospital_final and pet:
+        else:
+            if valor == 0:
+                st.warning("Valor zerado. Salvando mesmo assim...")
             data_str = data.strftime("%d/%m/%Y")
             data_pagto_str = data_pagto.strftime("%d/%m/%Y") if data_pagto else ""
             linha = [
@@ -221,6 +219,8 @@ if st.session_state.pagina == "registrar":
             ]
             salvar_linha(linha)
             st.success(f"✅ Atendimento de {pet} registrado com sucesso!")
+            limpar_formulario()
+            st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PÁGINA 2 — REGISTRAR PAGAMENTOS
