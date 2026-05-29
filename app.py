@@ -130,7 +130,6 @@ def get_hospitais_atuais():
     base = dict(HOSPITAIS)
     for h in sorted(extras):
         base[h] = ""
-    # Ordena tudo alfabeticamente, mantendo Outro no final
     ordered = dict(sorted({k: v for k, v in base.items() if k != "Outro / Novo hospital"}.items()))
     ordered["Outro / Novo hospital"] = None
     return ordered
@@ -161,7 +160,7 @@ if st.session_state.pagina == "registrar":
     hospitais_map = get_hospitais_atuais()
     lista_hospitais = list(hospitais_map.keys())
 
-    # Selectbox FORA do form para reagir imediatamente
+    # Campos FORA do form para reagir imediatamente
     hospital_sel = st.selectbox("🏥 Hospital", lista_hospitais, key="hospital_sel")
 
     if hospital_sel == "Outro / Novo hospital":
@@ -176,30 +175,35 @@ if st.session_state.pagina == "registrar":
             st.text_input("📍 Cidade", value=cidade_auto, disabled=True, key="cidade_auto")
             cidade_final = cidade_auto
 
+    # Situação também FORA do form para mostrar campos de pagamento na hora
+    situacao = st.selectbox("📋 Situação", SITUACOES, key="situacao_sel")
+
+    meio_pagto = ""
+    data_pagto = None
+    recebido = ""
+    if situacao == "Pago":
+        meio_pagto = st.selectbox("💳 Meio de Pagamento", MEIOS_PAGTO, key="meio_sel")
+        data_pagto = st.date_input("📅 Data do Pagamento", value=date.today(), key="data_pagto_sel")
+        recebido = st.selectbox("🧾 PF / PJ", RECEBIDO_OPTS, key="recebido_sel")
+
     with st.form("form_atendimento", clear_on_submit=True):
-        data = st.date_input("📅 Data", value=date.today())
+        data = st.date_input("📅 Data do Atendimento", value=date.today())
         cliente = st.text_input("👤 Cliente")
         pet = st.text_input("🐶 Pet")
         tipo = st.selectbox("🔬 Tipo de Atendimento", TIPOS)
         valor = st.number_input("💵 Valor (R$)", min_value=0.0, step=10.0, format="%.2f")
-        situacao = st.selectbox("📋 Situação", SITUACOES)
-
-        meio_pagto = ""
-        data_pagto = None
-        recebido = ""
-        if situacao == "Pago":
-            meio_pagto = st.selectbox("💳 Meio de Pagamento", MEIOS_PAGTO)
-            data_pagto = st.date_input("📅 Data do Pagamento", value=date.today())
-            recebido = st.selectbox("🧾 PF / PJ", RECEBIDO_OPTS)
-
         observacao = st.text_input("📝 Observação (opcional)")
         submitted = st.form_submit_button("✅ Salvar Atendimento", use_container_width=True)
 
     if submitted:
-        # Lê os valores do session_state para garantir que pegou antes do reset
         if st.session_state.get("hospital_sel") == "Outro / Novo hospital":
             hospital_final = st.session_state.get("novo_hospital", "")
             cidade_final = st.session_state.get("nova_cidade", "")
+
+        situacao = st.session_state.get("situacao_sel", "Em aberto")
+        meio_pagto = st.session_state.get("meio_sel", "")
+        data_pagto = st.session_state.get("data_pagto_sel", None)
+        recebido = st.session_state.get("recebido_sel", "")
 
         if not hospital_final:
             st.error("Informe o hospital.")
